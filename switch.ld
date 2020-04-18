@@ -63,7 +63,7 @@ SECTIONS
 		. = ALIGN(8);
 	} :rodata
 
-	.eh_frame_hdr     : { __eh_frame_hdr_start = .; *(.eh_frame_hdr) *(.eh_frame_entry .eh_frame_entry.*) __eh_frame_hdr_end = .; } :rodata
+	.eh_frame_hdr     : { __eh_frame_hdr_start = .; KEEP(*(.eh_frame_hdr)) KEEP(*(.eh_frame_entry .eh_frame_entry.*)) __eh_frame_hdr_end = .; } :rodata
 	.eh_frame         : ONLY_IF_RO { __eh_frame_start = .; KEEP (*(.eh_frame)) *(.eh_frame.*) __eh_frame_end = .; } :rodata
 	.gcc_except_table : ONLY_IF_RO { *(.gcc_except_table .gcc_except_table.*) } :rodata
 	.gnu_extab        : ONLY_IF_RO { *(.gnu_extab*) } : rodata

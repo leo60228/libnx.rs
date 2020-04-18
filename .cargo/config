@@ -33,4 +33,5 @@ rustflags = [
     "-Clink-arg=-Wl,-z,text",
     "-Clink-arg=-Wl,-z,muldefs",
     "-Clink-arg=-Wl,--export-dynamic",
+    "-Clink-arg=-Wl,--eh-frame-hdr",
 ]
