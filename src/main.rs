@@ -1,10 +1,22 @@
+#[macro_use]
+extern crate cpp;
+
+pub mod console;
 pub mod error;
+mod guard;
+pub mod raw_fb;
+pub mod result;
+pub mod rs_console;
+pub mod types;
+
+pub use result::*;
 
 use backtrace::Backtrace;
+use console::Console;
 use error::ErrorApplicationConfig;
+use raw_fb::*;
 use std::os::raw::{c_char, c_int};
 use std::panic::{self, PanicInfo};
-use std::ptr;
 use std::thread;
 
 fn wait_for_button() {
@@ -33,39 +45,34 @@ fn panic_hook(info: &PanicInfo) {
         error.show();
     } else {
         println!("{}", long);
-        unsafe {
-            consoleUpdate(ptr::null_mut());
-        }
+        let mut console = Console::new();
+        console.update();
         wait_for_button();
     }
 }
 
-enum PrintConsole {}
-
 extern "C" {
-    fn consoleInit(console: *mut PrintConsole) -> *mut PrintConsole;
-    fn consoleUpdate(console: *mut PrintConsole);
-    fn consoleExit(console: *mut PrintConsole);
     fn romfsMountSelf(name: *const c_char) -> u32;
 }
 
 #[allow(unreachable_code)]
-fn main() {
-    unsafe { consoleInit(ptr::null_mut()) };
+fn main() -> Result<()> {
     assert_eq!(unsafe { romfsMountSelf(b"romfs" as *const _) }, 0);
     panic::set_hook(Box::new(panic_hook));
 
-    let result = panic::catch_unwind(|| {
-        println!("hello!");
-    });
-    assert!(dbg!(result).is_ok());
-
-    let result = panic::catch_unwind(|| {
-        panic!("oh no!");
-    });
-    assert!(dbg!(result).is_err());
-
-    unsafe { consoleUpdate(ptr::null_mut()) }
+    let mut nwindow = NWindow::default();
+    let mut fb = Framebuffer::new(
+        &mut nwindow,
+        1280,
+        720,
+        PixelFormat::Rgba8888,
+        Buffering::Single,
+    )?;
+    fb.make_linear()?;
+    let mut frame = fb.start_frame();
+    rs_console::draw_text(&mut frame, "Hello, world!", 10, 10, 24.0);
+    drop(frame);
     wait_for_button();
-    unsafe { consoleExit(ptr::null_mut()) }
+
+    Ok(())
 }
