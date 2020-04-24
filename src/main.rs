@@ -61,17 +61,12 @@ fn main() -> Result<()> {
     panic::set_hook(Box::new(panic_hook));
 
     let mut nwindow = NWindow::default();
-    let mut fb = Framebuffer::new(
-        &mut nwindow,
-        1280,
-        720,
-        PixelFormat::Rgba8888,
-        Buffering::Single,
-    )?;
-    fb.make_linear()?;
-    let mut frame = fb.start_frame();
-    rs_console::draw_text(&mut frame, "Hello, world!", 10, 10, 24.0);
-    drop(frame);
+    let mut console = rs_console::Console::new(&mut nwindow)?;
+    console.append("Hello, world!");
+    console.append("This\nhas a newline!");
+    console.append(&("lots".to_string() + &" and lots".repeat(100) + " of text\nwith\nnewlines"));
+    wait_for_button();
+    console.append(&"line\n".repeat(100));
     wait_for_button();
 
     Ok(())

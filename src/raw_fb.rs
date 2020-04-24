@@ -429,6 +429,14 @@ impl<'a> Frame<'a, '_> {
         let bpp: usize = self.fb.format.bytes_per_pixel() as _;
         &mut self.row_mut(y)[x * bpp..][..bpp]
     }
+
+    pub fn clear(&mut self) {
+        let len = self.fb.height * self.stride;
+        let slice = unsafe { slice::from_raw_parts_mut(self.data, len.try_into().unwrap()) };
+        for x in slice {
+            *x = 0;
+        }
+    }
 }
 
 impl Drop for Frame<'_, '_> {
