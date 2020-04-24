@@ -430,10 +430,22 @@ impl<'a> Frame<'a, '_> {
         &mut self.row_mut(y)[x * bpp..][..bpp]
     }
 
-    pub fn clear(&mut self) {
+    pub fn slice(&self) -> &'a [u8] {
         let len = self.fb.height * self.stride;
-        let slice = unsafe { slice::from_raw_parts_mut(self.data, len.try_into().unwrap()) };
-        for x in slice {
+        unsafe { slice::from_raw_parts(self.data, len.try_into().unwrap()) }
+    }
+
+    pub fn slice_mut(&mut self) -> &'a mut [u8] {
+        let len = self.fb.height * self.stride;
+        unsafe { slice::from_raw_parts_mut(self.data, len.try_into().unwrap()) }
+    }
+
+    pub fn stride(&self) -> u32 {
+        self.stride
+    }
+
+    pub fn clear(&mut self) {
+        for x in self.slice_mut() {
             *x = 0;
         }
     }

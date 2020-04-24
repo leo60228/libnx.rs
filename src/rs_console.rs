@@ -1,7 +1,8 @@
 use crate::raw_fb::{Buffering, Frame, Framebuffer, NWindow, PixelFormat};
 use crate::Result;
+use lru_time_cache::LruCache;
 use once_cell::sync::Lazy;
-use rusttype::{point, Font, Scale};
+use rusttype::{point, Font, GlyphId, PositionedGlyph, Scale};
 use std::collections::VecDeque;
 
 const FONT_DATA: &[u8] = include_bytes!("../assets/Hack.ttf");
@@ -18,26 +19,44 @@ static CHAR_WIDTH: Lazy<f32> = Lazy::new(|| {
     // this will definitely work always.
     FONT.glyph('a').scaled(SCALE).h_metrics().advance_width
 });
+static CHAR_PX: Lazy<usize> = Lazy::new(|| CHAR_WIDTH.ceil() as usize);
 static CHARS: Lazy<usize> = Lazy::new(|| ((WIDTH as f32) / *CHAR_WIDTH) as usize);
+const GLYPH_CACHE_SIZE: usize = 64; // randomly picked
 
-fn draw_text(frame: &mut Frame, text: &str, x: i32, y: i32) {
+type GlyphCache = LruCache<GlyphId, Vec<u8>>;
+
+fn draw_text(frame: &mut Frame, glyph_cache: &mut GlyphCache, text: &str, x: i32, y: i32) {
     let v_metrics = FONT.v_metrics(SCALE);
     let coords = point(x as f32, y as f32 + v_metrics.ascent);
 
     for glyph in FONT.layout(text, SCALE, coords) {
         if let Some(bb) = glyph.pixel_bounding_box() {
-            glyph.draw(|x, y, v| {
-                let x = x as i32 + bb.min.x;
-                let y = y as i32 + bb.min.y;
-                let c = (v * 255.0) as u8;
+            let tex = glyph_cache
+                .entry(glyph.id())
+                .or_insert_with(|| draw_glyph(&glyph));
+            for (i, byte) in tex.iter().enumerate() {
+                let y = (i / *CHAR_PX) as i32 + bb.min.y;
+                let x = (i % *CHAR_PX) as i32 + bb.min.x;
                 let pixel = frame.pixel_mut(x as _, y as _);
-                pixel[0] = c;
-                pixel[1] = c;
-                pixel[2] = c;
+                pixel[0] = *byte;
+                pixel[1] = *byte;
+                pixel[2] = *byte;
                 pixel[3] = 255;
-            });
+            }
         }
     }
+}
+
+fn draw_glyph(glyph: &PositionedGlyph) -> Vec<u8> {
+    let mut vec = vec![0; *CHAR_PX * FONT_SIZE as usize];
+    glyph.draw(|x, y, v| {
+        let x = x as usize;
+        let y = y as usize;
+        let v = (v * 255.0) as u8;
+        let i = y * *CHAR_PX + x;
+        vec[i] = v;
+    });
+    vec
 }
 
 pub struct Console<'a> {
@@ -45,6 +64,7 @@ pub struct Console<'a> {
     lines: VecDeque<String>,
     changed: Vec<usize>,
     redraw: bool,
+    glyph_cache: GlyphCache,
 }
 
 impl<'a> Console<'a> {
@@ -55,11 +75,13 @@ impl<'a> Console<'a> {
         let lines = VecDeque::with_capacity(LINES);
         let changed = Vec::with_capacity(LINES);
         let redraw = false;
+        let glyph_cache = GlyphCache::with_capacity(GLYPH_CACHE_SIZE);
         Ok(Self {
             fb,
             lines,
             changed,
             redraw,
+            glyph_cache,
         })
     }
 
@@ -75,7 +97,7 @@ impl<'a> Console<'a> {
                 continue;
             }
             let y = (i as i32) * (line_height as i32);
-            draw_text(&mut frame, &line, 0, y);
+            draw_text(&mut frame, &mut self.glyph_cache, &line, 0, y);
         }
         self.redraw = false;
         self.changed.clear();
