@@ -412,7 +412,7 @@ impl<'a> Frame<'a, '_> {
     }
 
     pub fn row_mut(&mut self, y: usize) -> &'a mut [u8] {
-        assert!(y < self.fb.height.try_into().unwrap());
+        assert!(y < self.fb.height.try_into().unwrap(), "{} >= {}", y, self.fb.height);
         let offset = y * (self.stride as usize);
         let ptr = self.data.wrapping_offset(offset.try_into().unwrap()) as *mut u8;
         let bpp: u32 = self.fb.format.bytes_per_pixel().into();

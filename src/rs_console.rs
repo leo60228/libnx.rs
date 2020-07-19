@@ -10,7 +10,6 @@ static FONT: Lazy<Font<'static>> = Lazy::new(|| Font::try_from_bytes(FONT_DATA).
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
 const FONT_SIZE: u32 = 20;
-const LINES: usize = (HEIGHT / FONT_SIZE) as usize;
 const SCALE: Scale = Scale {
     x: FONT_SIZE as f32,
     y: FONT_SIZE as f32,
@@ -37,6 +36,9 @@ fn draw_text(frame: &mut Frame, glyph_cache: &mut GlyphCache, text: &str, x: i32
             for (i, byte) in tex.iter().enumerate() {
                 let y = (i / *CHAR_PX) as i32 + bb.min.y;
                 let x = (i % *CHAR_PX) as i32 + bb.min.x;
+                if y >= (HEIGHT as i32) {
+                    break;
+                }
                 let pixel = frame.pixel_mut(x as _, y as _);
                 pixel[0] = *byte;
                 pixel[1] = *byte;
@@ -65,6 +67,7 @@ pub struct Console<'a> {
     changed: Vec<usize>,
     redraw: bool,
     glyph_cache: GlyphCache,
+    line_count: usize,
 }
 
 impl<'a> Console<'a> {
@@ -72,8 +75,11 @@ impl<'a> Console<'a> {
         let mut fb =
             Framebuffer::new(win, WIDTH, HEIGHT, PixelFormat::Rgba8888, Buffering::Double)?;
         fb.make_linear()?;
-        let lines = VecDeque::with_capacity(LINES);
-        let changed = Vec::with_capacity(LINES);
+        let v_metrics = FONT.v_metrics(SCALE);
+        let line_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
+        let line_count = ((HEIGHT as f32) / line_height).floor() as usize;
+        let lines = VecDeque::with_capacity(line_count);
+        let changed = Vec::with_capacity(line_count);
         let redraw = false;
         let glyph_cache = GlyphCache::with_capacity(GLYPH_CACHE_SIZE);
         Ok(Self {
@@ -82,6 +88,7 @@ impl<'a> Console<'a> {
             changed,
             redraw,
             glyph_cache,
+            line_count,
         })
     }
 
@@ -105,14 +112,14 @@ impl<'a> Console<'a> {
 
     fn push_wrapped_line(&mut self, line: &str) {
         debug_assert!(line.len() <= *CHARS, "{} > {}", line.len(), *CHARS);
-        if self.lines.len() == LINES {
+        if self.lines.len() == self.line_count {
             self.lines.pop_front();
             self.redraw = true;
         } else if !self.redraw {
             self.changed.push(self.lines.len());
         }
         self.lines.push_back(line.to_string());
-        debug_assert!(self.lines.len() <= LINES);
+        debug_assert!(self.lines.len() <= self.line_count);
     }
 
     fn push_one_line(&mut self, line: &str) {

@@ -15,7 +15,7 @@ use backtrace::Backtrace;
 use console::Console;
 use error::ErrorApplicationConfig;
 use raw_fb::*;
-use std::os::raw::{c_char, c_int};
+use std::os::raw::c_int;
 use std::panic::{self, PanicInfo};
 use std::thread;
 
@@ -51,13 +51,8 @@ fn panic_hook(info: &PanicInfo) {
     }
 }
 
-extern "C" {
-    fn romfsMountSelf(name: *const c_char) -> u32;
-}
-
 #[allow(unreachable_code)]
 fn main() -> Result<()> {
-    assert_eq!(unsafe { romfsMountSelf(b"romfs" as *const _) }, 0);
     panic::set_hook(Box::new(panic_hook));
 
     let mut nwindow = NWindow::default();
@@ -67,6 +62,7 @@ fn main() -> Result<()> {
     console.append(&("lots".to_string() + &" and lots".repeat(100) + " of text\nwith\nnewlines"));
     wait_for_button();
     console.append(&"line\n".repeat(100));
+    console.append("Press any button to exit.");
     wait_for_button();
 
     Ok(())

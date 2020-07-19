@@ -47,6 +47,7 @@ fn main() {
 
     let include_path = "/opt/devkitpro/libnx/include/";
     cpp_build::Config::new()
-        .include(include_path)
+        .flag("-isystem")
+        .flag(include_path)
         .build("src/main.rs");
 }

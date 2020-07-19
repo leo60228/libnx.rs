@@ -10,16 +10,15 @@ edition = "2018"
 paste = "0.1.10"
 thiserror = "1.0.15"
 phf = "0.8.0"
-libc = { git = "https://github.com/leo60228/libc.git", branch = "bindgen-newlib" }
+libc = { git = "https://github.com/leo60228/libc.git", branch = "bindgen-horizon" }
 cpp = "0.5.4"
 rusttype = "0.9.0"
 once_cell = "1.3.1"
 lru_time_cache = "0.10.0"
 
 [dependencies.backtrace]
-path = "../backtrace-rs"
-default-features = false
-features = ["std", "libunwind", "gimli-symbolize"]
+git = "https://github.com/leo60228/backtrace-rs.git"
+branch = "linkle-dwarf"
 
 [build_dependencies]
 phf_codegen = "0.8.0"
